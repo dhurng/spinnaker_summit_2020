@@ -1,0 +1,127 @@
+apiVersion: spinnaker.armory.io/v1alpha2
+kind: SpinnakerService
+metadata:
+  name: spinnaker
+  namespace: spinnaker-workspace
+spec:
+  spinnakerConfig:
+    config:
+      artifacts:
+        http:
+          accounts: []
+          enabled: true
+      features:
+        artifacts: true
+        artifactsRewrite: true
+      persistentStorage:
+        persistentStoreType: s3
+        s3:
+          accessKeyId: minio
+          bucket: spinnaker
+          endpoint: http://minio.spinnaker:9000
+          pathStyleAccess: true
+          rootFolder: front50
+          secretAccessKey: ***
+      providers:
+        kubernetes:
+          accounts:
+          - name: spinnaker-summit
+            onlySpinnakerManaged: true
+            providerVersion: V2
+            serviceAccount: true
+          enabled: true
+          primaryAccount: spinnaker-summit
+      security:
+        apiSecurity:
+          overrideBaseUrl: https://**.***.***.**/api/v1
+        uiSecurity:
+          overrideBaseUrl: https://**.***.***.**
+      version: 2.22.2
+    profiles:
+      clouddriver: {}
+      deck:
+        settings-local.js: |
+          window.spinnakerSettings.feature.kustomizeEnabled = true;
+          window.spinnakerSettings.authEnabled = true;
+      echo: {}
+      fiat: {}
+      front50:
+        spinnaker.s3.versioning: false
+      gate:
+        security:
+          basicform:
+            enabled: true
+          user:
+            name: admin
+            password: "****"
+        server:
+          servlet:
+            context-path: /api/v1
+          tomcat:
+            httpsServerPort: X-Forwarded-Port
+            internalProxies: .*
+            protocolHeader: X-Forwarded-Proto
+            remoteIpHeader: X-Forwarded-For
+      igor: {}
+      kayenta: {}
+      orca: {}
+      rosco: {}
+    service-settings:
+      clouddriver:
+        kubernetes:
+          serviceAccountName: clouddriver
+      deck: {}
+      echo: {}
+      fiat: {}
+      front50: {}
+      gate:
+        healthEndpoint: /api/v1/health
+      igor: {}
+      kayenta: {}
+      orca: 
+        job:
+          preconfigured:
+            kubernetes:
+              - label: Run Script
+                type: runScript
+                description: Run Script in K8 Job
+                cloudProvider: kubernetes
+                account: spinnaker-summit
+                credentials: spinnaker-summit
+                waitForCompletion: true
+                # application in spinnaker
+                application: spinnaker-summit
+                # to show ui
+                parameters:
+                  - name: SCRIPT
+                    label: Scripts to Run
+                    description: Run Scripts in Custom Repo
+                    mapping: manifest.spec.template.spec.containers[0].env[0].value
+                    defaultValue: "helloworld.sh"
+                manifest:
+                  apiVersion: batch/v1
+                  kind: Job
+                  metadata:
+                    name: run-script
+                    namespace: spinnaker-workspace
+                  spec:
+                    # cleanup after
+                    ttlSecondsAfterFinished: 86400
+                    backoffLimit: 0
+                    template:
+                      spec:
+                        restartPolicy: Never
+                        containers:
+                        - name: run-script
+                          image: markmark206/alpine-bash-curl-jq-git-perl-python-ssh:latest
+                          command:
+                            - sh
+                            - -c
+                            - git clone https://github.com/dhurng/spinnaker_summit_2020.git spinnaker_summit_repo/ &&
+                              bash spinnaker_summit_repo/$(COMMAND)
+                          env:
+                            - name: COMMAND
+                              value: placeholder
+                            - name: SECRET
+                              value: "test"
+      rosco: {}
